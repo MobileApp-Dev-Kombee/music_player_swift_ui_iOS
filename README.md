@@ -25,7 +25,7 @@ Designed as a learning resource and a showcase for clients.
 
 ### 1. **Clone the Repository**
 ```sh
-git clone https://github.com/kombee-technologies/MusicPlayerApp.git
+git clone https://github.com/MobileApp-Dev-Kombee/MusicPlayerApp.git
 cd swiftui-music-player-demo
 ```
 
