@@ -172,45 +172,23 @@ struct PlayerView: View {
 
 ## 📸 Screenshots
 
-### 📝 Music List Screen
+### 📝 Music List Screen & Online Track Play. 
 
-Offline and Online Song List
+Offline and Online Song List Preview & Playing Track From Online Preview
 
-<p align="center">
-  <img src="App_ScreeShots/List_Screen.png" alt="Task Creation Flow" width="250"/>
-</p>
+ <div style="display: flex; gap: 10px;">
+  <img src="App_ScreeShots/List_Screen.png" alt="Online Firm Track Login" width="200" />
+  <img src="App_ScreeShots/Online_Track_Play.png" alt="Online Firm Track Map" width="200" />
+  </div>
 
-### ✅ Online Track Play
+### ✅ Offline Track Play &  ✅ Play-Pause
 
-Playing Track From Online
+Playing Track From Offline Preview & Pay-Pause Song Preview
 
-<p align="center">
-  <img src="App_ScreeShots/Online_Track_Play.png" alt="Task Management" width="250"/>
-</p>
-
-### ✅ Offline Track Play
-
-Playing Track From Offline
-
-<p align="center">
-  <img src="App_ScreeShots/Offline_Track_Play.png" alt="Task Management" width="250"/>
-</p>
-
-
-### ✅ Play-Pause 
-
-Pay-Pause Song 
-
-<p align="center">
-  <img src="App_ScreeShots/PlayPauseSong.png" alt="Task Management" width="250"/>
-</p>
-
----
-
-## 📄 License
-
-MIT License.  
-Feel free to use, modify, and share!
+ <div style="display: flex; gap: 10px;">
+  <img src="App_ScreeShots/Offline_Track_Play.png" alt="Online Firm Track Login" width="200" />
+  <img src="App_ScreeShots/PlayPauseSong.png" alt="Online Firm Track Map" width="200" />
+  </div>
 
 ---
 
@@ -227,9 +205,36 @@ If you have suggestions or want to contribute, open an issue or pull request!
 
 ---
 
-**Happy coding! 🎧**
+## 🤝 **Contributing**
+
+We welcome contributions! Follow these steps to contribute:
+
+1. Fork the repository.
+2. Create a new branch for your feature/fix.
+3. Commit changes and open a **Pull Request**.
 
 ---
 
-Let me know if you want the README tailored for a specific repo name, or if you want to include more advanced usage or screenshots!
+## 📜 **License**
 
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
+## 👨‍💻 **Author**
+
+**Kombee Technologies**
+
+- 🌐 [Portfolio](https://github.com/kombee-technologies)
+- 💼 [LinkedIn](https://in.linkedin.com/company/kombee-global)
+- 🌍 [Website](https://www.kombee.com/)
+
+---
+
+<p align="center">
+  Built with ❤️ using SWIFTUI
+</p>
+
+---
+
+**Happy coding! 🎧**
