@@ -6,14 +6,24 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		88BFFB4B2DC880690099CE75 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 88BFFB4A2DC880690099CE75 /* README.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		883BF3A32DC356F600B2FDC3 /* MusicPlayerApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MusicPlayerApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		88BFFB4A2DC880690099CE75 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		883BF3A52DC356F600B2FDC3 /* MusicPlayerApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MusicPlayerApp;
+			sourceTree = "<group>";
+		};
+		88BFFB4C2DC882940099CE75 /* App_ScreeShots */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App_ScreeShots;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -32,6 +42,8 @@
 		883BF39A2DC356F600B2FDC3 = {
 			isa = PBXGroup;
 			children = (
+				88BFFB4A2DC880690099CE75 /* README.md */,
+				88BFFB4C2DC882940099CE75 /* App_ScreeShots */,
 				883BF3A52DC356F600B2FDC3 /* MusicPlayerApp */,
 				883BF3A42DC356F600B2FDC3 /* Products */,
 			);
@@ -62,6 +74,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				883BF3A52DC356F600B2FDC3 /* MusicPlayerApp */,
+				88BFFB4C2DC882940099CE75 /* App_ScreeShots */,
 			);
 			name = MusicPlayerApp;
 			packageProductDependencies = (
@@ -109,6 +122,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				88BFFB4B2DC880690099CE75 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -267,6 +281,10 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.MusicPlayerApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -296,6 +314,10 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.MusicPlayerApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
