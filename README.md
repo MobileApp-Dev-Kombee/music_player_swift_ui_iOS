@@ -1,6 +1,3 @@
-//
-//  README.md
-//  MusicPlayerApp
 
 ---
 
@@ -28,7 +25,7 @@ Designed as a learning resource and a showcase for clients.
 
 ### 1. **Clone the Repository**
 ```sh
-git clone https://github.com/yourusername/swiftui-music-player-demo.git
+git clone https://github.com/kombee-technologies/MusicPlayerApp.git
 cd swiftui-music-player-demo
 ```
 
@@ -174,11 +171,40 @@ struct PlayerView: View {
 ---
 
 ## 📸 Screenshots
-Find Screenshots in Project>App_ScreeShots folder with below name
-![List Screen](List_Screen)
-![Online Track](Online_Track_Play)
-![Offline Track](Offline_Track_Play)
-![PlayPause Track](PlayPauseSong)
+
+### 📝 Music List Screen
+
+Offline and Online Song List
+
+<p align="center">
+  <img src="App_ScreeShots/List_Screen.png" alt="Task Creation Flow" width="250"/>
+</p>
+
+### ✅ Online Track Play
+
+Playing Track From Online
+
+<p align="center">
+  <img src="App_ScreeShots/Online_Track_Play.png" alt="Task Management" width="250"/>
+</p>
+
+### ✅ Offline Track Play
+
+Playing Track From Offline
+
+<p align="center">
+  <img src="App_ScreeShots/Offline_Track_Play.png" alt="Task Management" width="250"/>
+</p>
+
+
+### ✅ Play-Pause 
+
+Pay-Pause Song 
+
+<p align="center">
+  <img src="App_ScreeShots/PlayPauseSong.png" alt="Task Management" width="250"/>
+</p>
+
 ---
 
 ## 📄 License
