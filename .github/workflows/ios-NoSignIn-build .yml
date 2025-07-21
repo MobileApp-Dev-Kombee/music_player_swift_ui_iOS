@@ -42,7 +42,7 @@ jobs:
           -project "MusicPlayerApp.xcodeproj" \
           -scheme "MusicPlayerApp" \
           -configuration Debug \
-          -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.0' \
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
           -archivePath build/YourApp.xcarchive \
           -sdk iphonesimulator \
           CODE_SIGNING_REQUIRED=NO \
@@ -98,7 +98,7 @@ jobs:
     - name: Test Installation in Simulator (Optional)
       run: |
         # Start simulator
-        xcrun simctl boot "iPhone 15" || true
+        xcrun simctl boot "iPhone 16" || true
         sleep 10
         
         # Extract and install app from IPA
@@ -155,7 +155,7 @@ services:
         -project "$PROJECT_NAME" \
         -scheme "$SCHEME_NAME" \
         -configuration Debug \
-        -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.0' \
+        -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
         -archivePath build/App.xcarchive \
         -sdk iphonesimulator \
         CODE_SIGNING_REQUIRED=NO \
@@ -208,7 +208,7 @@ services:
         -project "$PROJECT_NAME" \
         -scheme "$SCHEME_NAME" \
         -configuration Debug \
-        -destination 'platform=iOS Simulator,name=iPhone 15' \
+        -destination 'platform=iOS Simulator,name=iPhone 16' \
         -archivePath build/$OUTPUT_NAME.xcarchive \
         -sdk iphonesimulator \
         CODE_SIGNING_REQUIRED=NO \
@@ -245,7 +245,7 @@ services:
 #!/bin/bash
 
 IPA_FILE="MusicPlayerApp-Simulator.ipa"
-SIMULATOR_NAME="iPhone 15"
+SIMULATOR_NAME="iPhone 16"
 BUNDLE_ID="com.MusicPlayerApp"
 
 echo "📱 Installing $IPA_FILE to iOS Simulator..."
