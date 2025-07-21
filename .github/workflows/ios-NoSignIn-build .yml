@@ -1,5 +1,5 @@
 # Simple iOS Simulator Build - GitHub Actions
-# File: .github/workflows/ios-NoSignIn-build .yml
+# File: .github/workflows/ios-simulator-build.yml
 
 name: Build iOS App for Simulator
 
@@ -31,6 +31,24 @@ jobs:
           pod install
         fi
     
+    - name: Detect Project Structure
+      run: |
+        echo "📁 Current directory contents:"
+        ls -la
+        echo ""
+        echo "📁 Looking for Xcode projects:"
+        find . -name "*.xcodeproj" -maxdepth 2
+        find . -name "*.xcworkspace" -maxdepth 2
+        
+        # Get the actual project name
+        PROJECT_NAME=$(find . -name "*.xcodeproj" -maxdepth 2 | head -1 | sed 's|.*/||' | sed 's|\.xcodeproj||')
+        echo "PROJECT_NAME=$PROJECT_NAME" >> $GITHUB_ENV
+        echo "Found project: $PROJECT_NAME"
+    
+    - name: Show Available Schemes
+      run: |
+        xcodebuild -project "$PROJECT_NAME.xcodeproj" -list
+    
     - name: Clean Build Directory
       run: |
         rm -rf build/
@@ -38,23 +56,23 @@ jobs:
     
     - name: Build App for Simulator
       run: |
-        xcodebuild clean build \
-          -project "MusicPlayerApp.xcodeproj" \
-          -scheme "MusicPlayerApp" \
+        xcodebuild clean archive \
+          -project "$PROJECT_NAME.xcodeproj" \
+          -scheme "$PROJECT_NAME" \
           -configuration Debug \
-          -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.4' \
-          -archivePath build/YourApp.xcarchive \
+          -destination 'platform=iOS Simulator,name=iPhone 15,OS=18.4' \
+          -archivePath build/$PROJECT_NAME.xcarchive \
           -sdk iphonesimulator \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO \
           CODE_SIGN_IDENTITY="" \
           PROVISIONING_PROFILE="" \
-          archive
+          ONLY_ACTIVE_ARCH=YES
     
     - name: Export IPA for Simulator
       run: |
         xcodebuild -exportArchive \
-          -archivePath build/YourApp.xcarchive \
+          -archivePath build/$PROJECT_NAME.xcarchive \
           -exportPath build/ \
           -exportOptionsPlist exportOptions.plist
     
@@ -85,7 +103,7 @@ jobs:
     
     - name: Rename and Move IPA
       run: |
-        find build/ -name "*.ipa" -exec mv {} YourApp-Simulator.ipa \;
+        find build/ -name "*.ipa" -exec mv {} $PROJECT_NAME-Simulator.ipa \;
         ls -la *.ipa
     
     - name: Upload IPA Artifact
@@ -102,7 +120,7 @@ jobs:
         sleep 10
         
         # Extract and install app from IPA
-        unzip -q YourApp-Simulator.ipa
+        unzip -q $PROJECT_NAME-Simulator.ipa
         APP_PATH=$(find Payload/ -name "*.app" | head -1)
         xcrun simctl install booted "$APP_PATH"
         
@@ -123,7 +141,7 @@ services:
     working_dir: /workspace
     command: |
       # Build Configuration
-      export SCHEME_NAME="MusicPlayerApp.xcodeproj"
+      export SCHEME_NAME="MusicPlayerApp"
       export PROJECT_NAME="MusicPlayerApp.xcodeproj"
       export BUNDLE_ID="com.MusicPlayerApp"
       
