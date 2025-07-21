@@ -1,0 +1,284 @@
+# Simple iOS Simulator Build - GitHub Actions
+# File: .github/workflows/ios-NoSignIn-build .yml
+
+name: Build iOS App for Simulator
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  build-ios-simulator:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Select Xcode Version
+      run: sudo xcode-select -s /Applications/Xcode_15.0.app/Contents/Developer
+    
+    - name: Show Xcode Version
+      run: xcodebuild -version
+    
+    - name: Install Dependencies (if using CocoaPods)
+      run: |
+        if [ -f "Podfile" ]; then
+          sudo gem install cocoapods
+          pod install
+        fi
+    
+    - name: Clean Build Directory
+      run: |
+        rm -rf build/
+        rm -rf *.ipa
+    
+    - name: Build App for Simulator
+      run: |
+        xcodebuild clean build \
+          -project "MusicPlayerApp.xcodeproj" \
+          -scheme "MusicPlayerApp" \
+          -configuration Debug \
+          -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.0' \
+          -archivePath build/YourApp.xcarchive \
+          -sdk iphonesimulator \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO \
+          CODE_SIGN_IDENTITY="" \
+          PROVISIONING_PROFILE="" \
+          archive
+    
+    - name: Export IPA for Simulator
+      run: |
+        xcodebuild -exportArchive \
+          -archivePath build/YourApp.xcarchive \
+          -exportPath build/ \
+          -exportOptionsPlist exportOptions.plist
+    
+    - name: Create Export Options Plist
+      run: |
+        cat > exportOptions.plist << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>method</key>
+            <string>development</string>
+            <key>destination</key>
+            <string>export</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>compileBitcode</key>
+            <false/>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <false/>
+        </dict>
+        </plist>
+        EOF
+    
+    - name: Rename and Move IPA
+      run: |
+        find build/ -name "*.ipa" -exec mv {} YourApp-Simulator.ipa \;
+        ls -la *.ipa
+    
+    - name: Upload IPA Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-simulator-ipa
+        path: "*.ipa"
+        retention-days: 30
+    
+    - name: Test Installation in Simulator (Optional)
+      run: |
+        # Start simulator
+        xcrun simctl boot "iPhone 15" || true
+        sleep 10
+        
+        # Extract and install app from IPA
+        unzip -q YourApp-Simulator.ipa
+        APP_PATH=$(find Payload/ -name "*.app" | head -1)
+        xcrun simctl install booted "$APP_PATH"
+        
+        echo "✅ App successfully installed in simulator!"
+
+---
+
+# Alternative: Simple Build Script
+# File: build-simulator-ipa.yml (for local use with act or similar)
+
+version: '3'
+
+services:
+  ios-build:
+    image: macos-latest
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    command: |
+      # Build Configuration
+      export SCHEME_NAME="MusicPlayerApp.xcodeproj"
+      export PROJECT_NAME="MusicPlayerApp.xcodeproj"
+      export BUNDLE_ID="com.MusicPlayerApp"
+      
+      echo "🔨 Building iOS App for Simulator..."
+      
+      # Clean previous builds
+      rm -rf build/ *.ipa
+      
+      # Create export options
+      cat > exportOptions.plist << EOF
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0">
+      <dict>
+          <key>method</key>
+          <string>development</string>
+          <key>destination</key>
+          <string>export</string>
+          <key>signingStyle</key>
+          <string>manual</string>
+          <key>compileBitcode</key>
+          <false/>
+      </dict>
+      </plist>
+      EOF
+      
+      # Build and archive
+      xcodebuild clean archive \
+        -project "$PROJECT_NAME" \
+        -scheme "$SCHEME_NAME" \
+        -configuration Debug \
+        -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.0' \
+        -archivePath build/App.xcarchive \
+        -sdk iphonesimulator \
+        CODE_SIGNING_REQUIRED=NO \
+        CODE_SIGNING_ALLOWED=NO \
+        CODE_SIGN_IDENTITY="" \
+        PROVISIONING_PROFILE=""
+      
+      # Export IPA
+      xcodebuild -exportArchive \
+        -archivePath build/App.xcarchive \
+        -exportPath build/ \
+        -exportOptionsPlist exportOptions.plist
+      
+      # Rename IPA
+      find build/ -name "*.ipa" -exec mv {} App-Simulator.ipa \;
+      
+      echo "✅ IPA created: App-Simulator.ipa"
+
+---
+
+# Docker-based Build (Alternative)
+# File: docker-compose.yml
+
+version: '3.8'
+
+services:
+  ios-builder:
+    image: macos-xcode:latest
+    volumes:
+      - .:/app
+      - ./build:/app/build
+    working_directory: /app
+    environment:
+      - SCHEME_NAME=MusicPlayerApp
+      - PROJECT_NAME=MusicPlayerApp.xcodeproj
+      - OUTPUT_NAME=MusicPlayerApp-Simulator
+    command: |
+      #!/bin/bash
+      set -e
+      
+      echo "Starting iOS Simulator Build..."
+      
+      # Install dependencies
+      if [ -f "Podfile" ]; then
+        pod install
+      fi
+      
+      # Build for simulator
+      xcodebuild clean archive \
+        -project "$PROJECT_NAME" \
+        -scheme "$SCHEME_NAME" \
+        -configuration Debug \
+        -destination 'platform=iOS Simulator,name=iPhone 15' \
+        -archivePath build/$OUTPUT_NAME.xcarchive \
+        -sdk iphonesimulator \
+        CODE_SIGNING_REQUIRED=NO \
+        CODE_SIGNING_ALLOWED=NO
+      
+      # Create minimal export options
+      echo '<?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0">
+      <dict>
+          <key>method</key>
+          <string>development</string>
+          <key>compileBitcode</key>
+          <false/>
+      </dict>
+      </plist>' > exportOptions.plist
+      
+      # Export to IPA
+      xcodebuild -exportArchive \
+        -archivePath build/$OUTPUT_NAME.xcarchive \
+        -exportPath build/ \
+        -exportOptionsPlist exportOptions.plist
+      
+      # Move IPA to root
+      mv build/*.ipa $OUTPUT_NAME.ipa
+      
+      echo "IPA ready: $OUTPUT_NAME.ipa"
+
+---
+
+# Installation Script for Interviewer
+# File: install-to-simulator.sh
+
+#!/bin/bash
+
+IPA_FILE="MusicPlayerApp-Simulator.ipa"
+SIMULATOR_NAME="iPhone 15"
+BUNDLE_ID="com.MusicPlayerApp"
+
+echo "📱 Installing $IPA_FILE to iOS Simulator..."
+
+# Check if IPA exists
+if [ ! -f "$IPA_FILE" ]; then
+    echo "❌ IPA file not found: $IPA_FILE"
+    exit 1
+fi
+
+# Boot simulator
+echo "🚀 Starting simulator..."
+xcrun simctl boot "$SIMULATOR_NAME" || true
+sleep 5
+
+# Extract and install
+echo "📦 Extracting and installing app..."
+rm -rf Payload/
+unzip -q "$IPA_FILE"
+APP_PATH=$(find Payload/ -name "*.app" | head -1)
+
+if [ -z "$APP_PATH" ]; then
+    echo "❌ No .app found in IPA"
+    exit 1
+fi
+
+xcrun simctl install booted "$APP_PATH"
+xcrun simctl launch booted "$BUNDLE_ID"
+
+echo "✅ App installed and launched successfully!"
+
+# Cleanup
+rm -rf Payload/
+
+# Show simulator
+open -a Simulator
