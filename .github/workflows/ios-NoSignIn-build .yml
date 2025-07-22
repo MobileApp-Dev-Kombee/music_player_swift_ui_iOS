@@ -12,43 +12,73 @@ on:
 
 jobs:
   build:
+    # Use the latest macOS runner provided by GitHub
     runs-on: macos-latest
     
     steps:
+    # Step 1: Check out your repository's code
     - name: Checkout
       uses: actions/checkout@v4
     
+    # Step 2: Select the Xcode version to use
     - name: Setup Xcode
       run: |
+        # Note: You can change the Xcode version to match your project's requirements
         sudo xcode-select -s /Applications/Xcode_15.0.app/Contents/Developer
         xcodebuild -version
     
+    # Step 3: Install CocoaPods dependencies if a Podfile is present
     - name: Install CocoaPods (if needed)
       run: |
         if [ -f "Podfile" ]; then
-          gem install cocoapods
+          echo "Podfile found. Installing dependencies."
+          # Using brew is often more reliable than gem install on CI runners
+          brew install cocoapods
           pod install
-        fi
-    
-    - name: List Project Info
-      run: |
-        echo "=== Directory Contents ==="
-        ls -la
-        
-        echo "=== Finding Projects ==="
-        find . -name "*.xcodeproj" -o -name "*.xcworkspace" | head -5
-        
-        # Set project variables
-        if [ -f "*.xcworkspace" ]; then
-          echo "WORKSPACE_FILE=$(ls *.xcworkspace | head -1)" >> $GITHUB_ENV
-          echo "USE_WORKSPACE=true" >> $GITHUB_ENV
-          echo "PROJECT_NAME=$(ls *.xcworkspace | head -1 | sed 's/.xcworkspace//')" >> $GITHUB_ENV
         else
-          echo "PROJECT_FILE=$(ls *.xcodeproj | head -1)" >> $GITHUB_ENV
-          echo "USE_WORKSPACE=false" >> $GITHUB_ENV
-          echo "PROJECT_NAME=$(ls *.xcodeproj | head -1 | sed 's/.xcodeproj//')" >> $GITHUB_ENV
+          echo "No Podfile found. Skipping pod install."
         fi
     
+    # Step 4: [CORRECTED] Reliably find the project/workspace and set paths
+    - name: List Project Info and Set Paths
+      id: project_info # Add an ID to reference outputs if needed
+      run: |
+        echo "=== Searching for project/workspace in all subdirectories... ==="
+        ls -laR # List all files recursively for debugging
+
+        # Use `find` to reliably locate the workspace or project file, prioritizing the workspace.
+        # This works even if the file is in a subdirectory.
+        WORKSPACE_PATH=$(find . -depth -name "*.xcworkspace" | head -1)
+        PROJECT_PATH=$(find . -depth -name "*.xcodeproj" | head -1)
+
+        if [ -n "$WORKSPACE_PATH" ]; then
+          echo "✅ Found workspace at: $WORKSPACE_PATH"
+          echo "WORKSPACE_FILE=${WORKSPACE_PATH}" >> $GITHUB_ENV
+          echo "USE_WORKSPACE=true" >> $GITHUB_ENV
+          # Extract the scheme name from the file path, a common convention.
+          SCHEME_NAME=$(basename "$WORKSPACE_PATH" .xcworkspace)
+          echo "PROJECT_NAME=${SCHEME_NAME}" >> $GITHUB_ENV
+
+        elif [ -n "$PROJECT_PATH" ]; then
+          echo "✅ Found project at: $PROJECT_PATH"
+          echo "PROJECT_FILE=${PROJECT_PATH}" >> $GITHUB_ENV
+          echo "USE_WORKSPACE=false" >> $GITHUB_ENV
+          # Extract the scheme name from the file path.
+          SCHEME_NAME=$(basename "$PROJECT_PATH" .xcodeproj)
+          echo "PROJECT_NAME=${SCHEME_NAME}" >> $GITHUB_ENV
+
+        else
+          echo "❌ Error: Could not find a .xcworkspace or .xcodeproj file."
+          echo "Please ensure your project file is in the repository."
+          exit 1
+        fi
+        
+        echo "--- Determined Variables ---"
+        echo "PROJECT_NAME: ${SCHEME_NAME}"
+        echo "USE_WORKSPACE: $( [ -n "$WORKSPACE_PATH" ] && echo true || echo false )"
+        echo "--------------------------"
+
+    # Step 5: List the available schemes for the determined project/workspace
     - name: Show Schemes
       run: |
         if [ "$USE_WORKSPACE" == "true" ]; then
@@ -57,19 +87,19 @@ jobs:
           xcodebuild -project "$PROJECT_FILE" -list
         fi
     
+    # Step 6: Build the project for the iOS Simulator
     - name: Build for Simulator
       run: |
-        # Clean first
-        rm -rf build/
-        
-        # Build command
+        # Set build arguments based on whether we are using a workspace or project
         if [ "$USE_WORKSPACE" == "true" ]; then
-          BUILD_ARGS="-workspace $WORKSPACE_FILE"
+          BUILD_ARGS="-workspace \"$WORKSPACE_FILE\""
         else
-          BUILD_ARGS="-project $PROJECT_FILE"
+          BUILD_ARGS="-project \"$PROJECT_FILE\""
         fi
         
-        # Build for simulator
+        # Build for a specific simulator
+        # Note: The PROJECT_NAME variable is assumed to be the scheme name.
+        # If your scheme name is different, you may need to set it manually.
         xcodebuild build \
           $BUILD_ARGS \
           -scheme "$PROJECT_NAME" \
@@ -77,33 +107,30 @@ jobs:
           -destination 'platform=iOS Simulator,name=iPhone 15' \
           -sdk iphonesimulator \
           CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO \
-          ONLY_ACTIVE_ARCH=YES
+          CODE_SIGNING_ALLOWED=NO
     
-    - name: Create Archive (Optional)
+    # Step 7: [OPTIONAL] Create an archive of the build
+    - name: Create Archive
       run: |
         if [ "$USE_WORKSPACE" == "true" ]; then
-          BUILD_ARGS="-workspace $WORKSPACE_FILE"
+          BUILD_ARGS="-workspace \"$WORKSPACE_FILE\""
         else
-          BUILD_ARGS="-project $PROJECT_FILE"
+          BUILD_ARGS="-project \"$PROJECT_FILE\""
         fi
         
+        # The archive path specifies where to save the output
         xcodebuild archive \
           $BUILD_ARGS \
           -scheme "$PROJECT_NAME" \
-          -configuration Debug \
-          -destination 'platform=iOS Simulator,name=iPhone 15' \
           -archivePath "build/$PROJECT_NAME.xcarchive" \
-          -sdk iphonesimulator \
           CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO \
-          ONLY_ACTIVE_ARCH=YES
-    
+          CODE_SIGNING_ALLOWED=NO
+
+    # Step 8: Upload the build artifacts (the archive)
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: ios-build-artifacts
-        path: |
-          build/
-          *.xcarchive
+        # The archive is created inside the 'build' directory, so we upload that.
+        path: build/
         retention-days: 7
