@@ -1,6 +1,6 @@
 # Simple iOS Simulator Build - GitHub Actions
 # File: .github/workflows/ios-simple-build.yml
-# Version: Final Correction
+# Version: Definitive Fix
 
 name: Simple iOS Build
 
@@ -33,21 +33,22 @@ jobs:
           echo "No Podfile found. Skipping pod install."
         fi
     
-    # [FINAL CORRECTED VERSION]
+    # [DEFINITIVE FIX] This step now correctly ignores the contents of .xcodeproj packages.
     - name: List Project Info and Set Paths
       id: project_info
       run: |
-        echo "=== Searching for project/workspace (max depth: 3) ==="
+        echo "=== Searching for project/workspace (excluding .xcodeproj contents) ==="
         ls -laR # List all files recursively for debugging
 
-        # Use `find` with `maxdepth` to prevent it from searching inside .xcodeproj bundles.
-        # This will find top-level workspaces and projects, which is the correct behavior.
-        # We prioritize the workspace, as is standard for CocoaPods.
-        WORKSPACE_PATH=$(find . -maxdepth 3 -name "*.xcworkspace" | head -1)
-        PROJECT_PATH=$(find . -maxdepth 3 -name "*.xcodeproj" | head -1)
+        # Use a more robust `find` command.
+        # This command finds *.xcworkspace files BUT it explicitly prunes (skips) searching inside any *.xcodeproj directory.
+        # This prevents it from finding the internal project.xcworkspace file.
+        WORKSPACE_PATH=$(find . -name "*.xcodeproj" -prune -o -name "*.xcworkspace" -print | head -n 1)
+        PROJECT_PATH=$(find . -maxdepth 3 -name "*.xcodeproj" | head -n 1)
 
+        # The logic remains the same: prioritize the workspace if a valid one is found.
         if [ -n "$WORKSPACE_PATH" ]; then
-          echo "✅ Found workspace at: $WORKSPACE_PATH"
+          echo "✅ Found valid top-level workspace at: $WORKSPACE_PATH"
           echo "WORKSPACE_FILE=${WORKSPACE_PATH}" >> $GITHUB_ENV
           echo "USE_WORKSPACE=true" >> $GITHUB_ENV
           # Extract the scheme name from the file path.
@@ -55,7 +56,7 @@ jobs:
           echo "PROJECT_NAME=${SCHEME_NAME}" >> $GITHUB_ENV
 
         elif [ -n "$PROJECT_PATH" ]; then
-          echo "✅ Found project at: $PROJECT_PATH"
+          echo "✅ No top-level workspace found. Using project at: $PROJECT_PATH"
           echo "PROJECT_FILE=${PROJECT_PATH}" >> $GITHUB_ENV
           echo "USE_WORKSPACE=false" >> $GITHUB_ENV
           # Extract the scheme name from the file path.
@@ -63,11 +64,11 @@ jobs:
           echo "PROJECT_NAME=${SCHEME_NAME}" >> $GITHUB_ENV
 
         else
-          echo "❌ Error: Could not find a .xcworkspace or .xcodeproj file within 3 directory levels."
-          echo "Please ensure your project file is in the repository and not nested too deeply."
+          echo "❌ Error: Could not find a valid .xcworkspace or .xcodeproj file."
+          echo "Please ensure your project file is in the repository."
           exit 1
         fi
-        
+
         echo "--- Determined Variables ---"
         echo "PROJECT_NAME: ${SCHEME_NAME}"
         echo "USE_WORKSPACE: $( [ -n "$WORKSPACE_PATH" ] && echo true || echo false )"
