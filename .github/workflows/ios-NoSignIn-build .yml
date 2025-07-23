@@ -1,6 +1,6 @@
 # Simple iOS Simulator Build - GitHub Actions
 # File: .github/workflows/ios-simple-build.yml
-# Version: Definitive Fix
+# Version: LFS Fix
 
 name: Simple iOS Build
 
@@ -16,8 +16,11 @@ jobs:
     runs-on: macos-latest
     
     steps:
+    # [CRITICAL FIX] Add lfs: true to ensure project files are fully downloaded
     - name: Checkout
       uses: actions/checkout@v4
+      with:
+        lfs: true # This is the fix for the project parsing error
     
     - name: Setup Xcode
       run: |
@@ -33,48 +36,35 @@ jobs:
           echo "No Podfile found. Skipping pod install."
         fi
     
-    # [DEFINITIVE FIX] This step now correctly ignores the contents of .xcodeproj packages.
+    # This script is now correct, the problem was with the file content
     - name: List Project Info and Set Paths
       id: project_info
       run: |
         echo "=== Searching for project/workspace (excluding .xcodeproj contents) ==="
-        ls -laR # List all files recursively for debugging
+        ls -laR
 
-        # Use a more robust `find` command.
-        # This command finds *.xcworkspace files BUT it explicitly prunes (skips) searching inside any *.xcodeproj directory.
-        # This prevents it from finding the internal project.xcworkspace file.
         WORKSPACE_PATH=$(find . -name "*.xcodeproj" -prune -o -name "*.xcworkspace" -print | head -n 1)
         PROJECT_PATH=$(find . -maxdepth 3 -name "*.xcodeproj" | head -n 1)
 
-        # The logic remains the same: prioritize the workspace if a valid one is found.
         if [ -n "$WORKSPACE_PATH" ]; then
           echo "✅ Found valid top-level workspace at: $WORKSPACE_PATH"
           echo "WORKSPACE_FILE=${WORKSPACE_PATH}" >> $GITHUB_ENV
           echo "USE_WORKSPACE=true" >> $GITHUB_ENV
-          # Extract the scheme name from the file path.
           SCHEME_NAME=$(basename "$WORKSPACE_PATH" .xcworkspace)
           echo "PROJECT_NAME=${SCHEME_NAME}" >> $GITHUB_ENV
-
         elif [ -n "$PROJECT_PATH" ]; then
           echo "✅ No top-level workspace found. Using project at: $PROJECT_PATH"
           echo "PROJECT_FILE=${PROJECT_PATH}" >> $GITHUB_ENV
           echo "USE_WORKSPACE=false" >> $GITHUB_ENV
-          # Extract the scheme name from the file path.
           SCHEME_NAME=$(basename "$PROJECT_PATH" .xcodeproj)
           echo "PROJECT_NAME=${SCHEME_NAME}" >> $GITHUB_ENV
-
         else
           echo "❌ Error: Could not find a valid .xcworkspace or .xcodeproj file."
-          echo "Please ensure your project file is in the repository."
           exit 1
         fi
-
+        
         echo "--- Determined Variables ---"
         echo "PROJECT_NAME: ${SCHEME_NAME}"
-        echo "USE_WORKSPACE: $( [ -n "$WORKSPACE_PATH" ] && echo true || echo false )"
-        echo "WORKSPACE_FILE: ${WORKSPACE_PATH:-'Not Set'}"
-        echo "PROJECT_FILE: ${PROJECT_PATH:-'Not Set'}"
-        echo "--------------------------"
 
     - name: Show Schemes
       run: |
@@ -92,8 +82,6 @@ jobs:
           BUILD_ARGS="-project \"$PROJECT_FILE\""
         fi
         
-        # Note: If your scheme name is different from your project/workspace file name,
-        # you must set it manually here.
         xcodebuild build \
           $BUILD_ARGS \
           -scheme "$PROJECT_NAME" \
