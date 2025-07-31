@@ -1,4 +1,6 @@
-name: Repair and Build iOS Project
+# .github/workflows/build-ios.yml
+
+name: Build iOS Project
 
 on:
   push:
@@ -9,214 +11,64 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
-    
+    # Use the macos-14 runner, which supports Xcode 16.
+    runs-on: macos-14
+
     steps:
-    - name: Checkout
+    - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        lfs: true
-        fetch-depth: 0
-        clean: true
-    
-    - name: Diagnose Project File
-      run: |
-        echo "=== Diagnosing Project File ==="
-        
-        PROJECT_FILE="MusicPlayerApp.xcodeproj"
-        PBXPROJ_FILE="$PROJECT_FILE/project.pbxproj"
-        
-        if [ ! -d "$PROJECT_FILE" ]; then
-          echo "❌ Project directory missing!"
-          ls -la
-          exit 1
-        fi
-        
-        if [ ! -f "$PBXPROJ_FILE" ]; then
-          echo "❌ project.pbxproj file missing!"
-          ls -la "$PROJECT_FILE/"
-          exit 1
-        fi
-        
-        echo "📁 Project directory contents:"
-        ls -la "$PROJECT_FILE/"
-        
-        echo "📄 project.pbxproj file info:"
-        ls -la "$PBXPROJ_FILE"
-        
-        FILE_SIZE=$(stat -f%z "$PBXPROJ_FILE" 2>/dev/null || stat -c%s "$PBXPROJ_FILE" 2>/dev/null)
-        echo "File size: $FILE_SIZE bytes"
-        
-        if [ "$FILE_SIZE" -lt 100 ]; then
-          echo "❌ project.pbxproj is too small (likely corrupted)"
-          echo "File contents:"
-          cat "$PBXPROJ_FILE"
-          exit 1
-        fi
-        
-        echo "🔍 First 10 lines of project.pbxproj:"
-        head -10 "$PBXPROJ_FILE"
-        
-        echo "🔍 Last 10 lines of project.pbxproj:"
-        tail -10 "$PBXPROJ_FILE"
-        
-        # Check for common corruption patterns
-        if grep -q "<<<<<<< HEAD" "$PBXPROJ_FILE"; then
-          echo "❌ Found Git merge conflict markers!"
-          grep -n "<<<<<<< HEAD\|=======\|>>>>>>> " "$PBXPROJ_FILE"
-          exit 1
-        fi
-        
-        # Check for missing or corrupted root object
-        if ! grep -q "rootObject" "$PBXPROJ_FILE"; then
-          echo "❌ Missing rootObject in project file!"
-          exit 1
-        fi
-        
-        echo "✅ Basic file structure looks intact"
-    
-    - name: Attempt Project File Repair
-      run: |
-        echo "=== Attempting Project File Repair ==="
-        
-        PROJECT_FILE="MusicPlayerApp.xcodeproj"
-        PBXPROJ_FILE="$PROJECT_FILE/project.pbxproj"
-        BACKUP_FILE="$PBXPROJ_FILE.backup"
-        
-        # Create backup
-        cp "$PBXPROJ_FILE" "$BACKUP_FILE"
-        echo "✅ Created backup: $BACKUP_FILE"
-        
-        # Try to fix common issues
-        echo "🔧 Attempting to fix project file..."
-        
-        # Remove any null characters
-        tr -d '\000' < "$BACKUP_FILE" > "$PBXPROJ_FILE.tmp"
-        mv "$PBXPROJ_FILE.tmp" "$PBXPROJ_FILE"
-        
-        # Ensure proper line endings
-        dos2unix "$PBXPROJ_FILE" 2>/dev/null || sed -i '' 's/\r$//' "$PBXPROJ_FILE" 2>/dev/null || true
-        
-        # Try to validate the plist format
-        if command -v plutil >/dev/null 2>&1; then
-          echo "🔍 Validating plist format..."
-          if plutil -lint "$PBXPROJ_FILE" >/dev/null 2>&1; then
-            echo "✅ Project file format is valid"
-          else
-            echo "❌ Project file format is invalid"
-            echo "Attempting to restore from backup and continue..."
-            cp "$BACKUP_FILE" "$PBXPROJ_FILE"
-          fi
-        fi
-        
-        echo "🔧 Repair attempt completed"
-    
-    - name: Setup Xcode
-      run: |
-        sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-        xcodebuild -version
-    
-    - name: Test Project Access After Repair
-      run: |
-        echo "=== Testing Project Access ==="
-        
-        PROJECT_FILE="MusicPlayerApp.xcodeproj"
-        
-        # Try to read the project
-        echo "🧪 Testing project read access..."
-        if xcodebuild -project "$PROJECT_FILE" -list -quiet 2>/dev/null; then
-          echo "✅ Project can be read successfully!"
-        else
-          echo "❌ Project still cannot be read. Detailed error:"
-          xcodebuild -project "$PROJECT_FILE" -list
-          echo ""
-          echo "=== Attempting Alternative Approaches ==="
-          
-          # Check if we can extract any scheme information
-          if grep -q "name.*= [A-Za-z]" "$PROJECT_FILE/project.pbxproj"; then
-            echo "📋 Found potential scheme names in project file:"
-            grep "name.*= [A-Za-z]" "$PROJECT_FILE/project.pbxproj" | head -5
-          fi
-          
-          exit 1
-        fi
-    
-    - name: Extract Project Information
-      id: project_info
-      run: |
-        echo "=== Extracting Project Information ==="
-        
-        PROJECT_FILE="MusicPlayerApp.xcodeproj"
-        
-        # Get the scheme name
-        SCHEME_NAME=$(basename "$PROJECT_FILE" .xcodeproj)
-        echo "PROJECT_NAME=$SCHEME_NAME" >> $GITHUB_ENV
-        echo "🎯 Using scheme: $SCHEME_NAME"
-        
-        # List all available schemes
-        echo "📋 Available schemes:"
-        xcodebuild -project "$PROJECT_FILE" -list
-    
+        lfs: true # Important if your project uses Git LFS for large assets
+
+    # This is the key fix: Use a dedicated action to select the correct Xcode version.
+    - name: Select Xcode 16
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        # Specify the Xcode version your project requires.
+        # You can use '16.0', '16.1', '16.2', or 'latest-beta' when available.
+        # Let's use '16.0' as it's the most common beta version on runners right now.
+        xcode-version: '16.0'
+
+    - name: Verify Xcode Version
+      run: xcodebuild -version
+
+    - name: List Available Schemes
+      # This step is useful for debugging to ensure your scheme is visible.
+      run: xcodebuild -list -project MusicPlayerApp.xcodeproj
+
     - name: Build for iOS Simulator
       run: |
-        echo "🔨 Building for iOS Simulator..."
-        
-        PROJECT_FILE="MusicPlayerApp.xcodeproj"
-        
+        # If your scheme has a different name, change it here.
+        # Often, the scheme name matches the project name.
+        SCHEME_NAME="MusicPlayerApp"
+
+        echo "🔨 Building scheme '$SCHEME_NAME' for simulator..."
         xcodebuild clean build \
-          -project "$PROJECT_FILE" \
-          -scheme "$PROJECT_NAME" \
-          -configuration Debug \
+          -project MusicPlayerApp.xcodeproj \
+          -scheme "$SCHEME_NAME" \
           -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
-          -sdk iphonesimulator \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO \
-          -quiet
-        
-        echo "✅ Build completed successfully!"
-    
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+
     - name: Create Build Archive
-      continue-on-error: true
       run: |
-        echo "📦 Creating build archive..."
-        
-        PROJECT_FILE="MusicPlayerApp.xcodeproj"
-        mkdir -p build
-        
+        SCHEME_NAME="MusicPlayerApp"
+        ARCHIVE_PATH="build/$SCHEME_NAME.xcarchive"
+
+        echo "📦 Archiving scheme '$SCHEME_NAME'..."
         xcodebuild archive \
-          -project "$PROJECT_FILE" \
-          -scheme "$PROJECT_NAME" \
-          -configuration Release \
-          -archivePath "build/$PROJECT_NAME.xcarchive" \
+          -project MusicPlayerApp.xcodeproj \
+          -scheme "$SCHEME_NAME" \
+          -archivePath "$ARCHIVE_PATH" \
+          CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO \
-          -quiet
-        
-        if [ -d "build/$PROJECT_NAME.xcarchive" ]; then
-          echo "✅ Archive created successfully"
-        fi
-    
-    - name: Upload Artifacts
+          SKIP_INSTALL=NO # Ensures a proper archive structure
+
+    - name: Upload Build Artifact
+      # This step will run even if a previous step fails, which is useful for debugging.
+      if: always()
       uses: actions/upload-artifact@v4
-      if: always()
       with:
-        name: project-diagnostics-and-build
-        path: |
-          MusicPlayerApp.xcodeproj/project.pbxproj.backup
-          build/
-          *.log
-        retention-days: 7
-    
-    - name: Project Health Report
-      if: always()
-      run: |
-        echo "=== Project Health Report ==="
-        echo "Project: MusicPlayerApp.xcodeproj"
-        echo "Status: $([ $? -eq 0 ] && echo "✅ Healthy" || echo "❌ Issues detected")"
-        echo "Timestamp: $(date)"
-        
-        PROJECT_FILE="MusicPlayerApp.xcodeproj/project.pbxproj"
-        if [ -f "$PROJECT_FILE" ]; then
-          FILE_SIZE=$(stat -f%z "$PROJECT_FILE" 2>/dev/null || stat -c%s "$PROJECT_FILE" 2>/dev/null)
-          echo "Project file size: $FILE_SIZE bytes"
-        fi
+        name: build-archive
+        path: build/
+        retention-days: 5
