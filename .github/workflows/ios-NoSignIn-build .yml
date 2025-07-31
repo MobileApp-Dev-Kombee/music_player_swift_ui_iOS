@@ -11,42 +11,37 @@ on:
 
 jobs:
   build:
-    # Use the macos-14 runner, which supports Xcode 16.
     runs-on: macos-14
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        lfs: true # Important if your project uses Git LFS for large assets
+        lfs: true
 
-    # This is the key fix: Use a dedicated action to select the correct Xcode version.
     - name: Select Xcode 16.2
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        # Specify the Xcode version your project requires.
-        # You can use '16.0', '16.1', '16.2', or 'latest-beta' when available.
-        # Let's use '16.0' as it's the most common beta version on runners right now.
         xcode-version: '16.2'
 
     - name: Verify Xcode Version
       run: xcodebuild -version
 
     - name: List Available Schemes
-      # This step is useful for debugging to ensure your scheme is visible.
       run: xcodebuild -list -project MusicPlayerApp.xcodeproj
 
     - name: Build for iOS Simulator
       run: |
-        # If your scheme has a different name, change it here.
-        # Often, the scheme name matches the project name.
         SCHEME_NAME="MusicPlayerApp"
+        # We'll put the output in a predictable location inside the 'build' directory
+        DERIVED_DATA_PATH="build/DerivedData"
 
         echo "🔨 Building scheme '$SCHEME_NAME' for simulator..."
         xcodebuild clean build \
           -project MusicPlayerApp.xcodeproj \
           -scheme "$SCHEME_NAME" \
           -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+          -derivedDataPath "$DERIVED_DATA_PATH" \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO
 
@@ -62,13 +57,20 @@ jobs:
           -archivePath "$ARCHIVE_PATH" \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
-          SKIP_INSTALL=NO # Ensures a proper archive structure
+          SKIP_INSTALL=NO
 
-    - name: Upload Build Artifact
-      # This step will run even if a previous step fails, which is useful for debugging.
-      if: always()
+    - name: Upload Simulator Build (.app file)
       uses: actions/upload-artifact@v4
       with:
-        name: build-archive
-        path: build/
+        name: simulator-build-app
+        # This path points directly to the compiled .app file
+        path: build/DerivedData/Build/Products/Debug-iphonesimulator/MusicPlayerApp.app
+        retention-days: 5
+
+    - name: Upload Archive Build (.xcarchive)
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: archive-build
+        path: build/MusicPlayerApp.xcarchive
         retention-days: 5
