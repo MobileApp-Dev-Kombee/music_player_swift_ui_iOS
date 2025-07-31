@@ -51,7 +51,7 @@ jobs:
     - name: Setup Xcode
       run: |
         # Change this version if needed
-        sudo xcode-select -s /Applications/Xcode_15.0.app/Contents/Developer
+        sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
         echo "🛠️ Xcode version:"
         xcodebuild -version
 
@@ -139,7 +139,7 @@ jobs:
           "${BUILD_ARGS[@]}" \
           -scheme "$PROJECT_NAME" \
           -configuration Debug \
-          -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
           -sdk iphonesimulator \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO \
@@ -183,7 +183,7 @@ jobs:
             xcodebuild test \
               -workspace "$BUILD_FILE" \
               -scheme "$PROJECT_NAME" \
-              -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+              -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
               | xcpretty || echo "Tests executed (with possible failures)"
           else
             echo "ℹ️ No tests configured for scheme '$PROJECT_NAME'"
@@ -194,7 +194,7 @@ jobs:
             xcodebuild test \
               -project "$BUILD_FILE" \
               -scheme "$PROJECT_NAME" \
-              -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+              -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
               | xcpretty || echo "Tests executed"
           else
             echo "ℹ️ No tests configured for scheme '$PROJECT_NAME'"
