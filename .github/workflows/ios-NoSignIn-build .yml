@@ -21,13 +21,13 @@ jobs:
         lfs: true # Important if your project uses Git LFS for large assets
 
     # This is the key fix: Use a dedicated action to select the correct Xcode version.
-    - name: Select Xcode 16
+    - name: Select Xcode 16.2
       uses: maxim-lobanov/setup-xcode@v1
       with:
         # Specify the Xcode version your project requires.
         # You can use '16.0', '16.1', '16.2', or 'latest-beta' when available.
         # Let's use '16.0' as it's the most common beta version on runners right now.
-        xcode-version: '16.0'
+        xcode-version: '16.2'
 
     - name: Verify Xcode Version
       run: xcodebuild -version
