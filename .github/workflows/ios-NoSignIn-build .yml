@@ -1,7 +1,3 @@
-# Simple iOS Simulator Build - GitHub Actions
-# File: .github/workflows/ios-simple-build.yml
-# Version: LFS Fix
-
 name: Simple iOS Build
 
 on:
@@ -16,11 +12,58 @@ jobs:
     runs-on: macos-latest
     
     steps:
-    # [CRITICAL FIX] Add lfs: true to ensure project files are fully downloaded
+    # [CRITICAL FIX] Add lfs: true and fetch-depth: 0 to ensure all files are downloaded
     - name: Checkout
       uses: actions/checkout@v4
       with:
-        lfs: true # This is the fix for the project parsing error
+        lfs: true
+        fetch-depth: 0  # Ensure we get the complete history
+        clean: true     # Clean any leftover files
+    
+    # [NEW] Verify project file integrity before proceeding
+    - name: Verify Project File Integrity
+      run: |
+        echo "=== Checking project file integrity ==="
+        
+        # Find the project file
+        PROJECT_FILE=$(find . -name "*.xcodeproj" | head -n 1)
+        
+        if [ -z "$PROJECT_FILE" ]; then
+          echo "❌ No .xcodeproj file found!"
+          exit 1
+        fi
+        
+        echo "Found project file: $PROJECT_FILE"
+        
+        # Check if project.pbxproj exists and is readable
+        PBXPROJ_FILE="$PROJECT_FILE/project.pbxproj"
+        
+        if [ ! -f "$PBXPROJ_FILE" ]; then
+          echo "❌ project.pbxproj file missing in $PROJECT_FILE"
+          exit 1
+        fi
+        
+        # Check file size (corrupted files are often 0 bytes or very small)
+        FILE_SIZE=$(stat -f%z "$PBXPROJ_FILE" 2>/dev/null || stat -c%s "$PBXPROJ_FILE" 2>/dev/null)
+        
+        if [ "$FILE_SIZE" -lt 100 ]; then
+          echo "❌ project.pbxproj file appears corrupted (size: $FILE_SIZE bytes)"
+          echo "File contents:"
+          cat "$PBXPROJ_FILE"
+          exit 1
+        fi
+        
+        echo "✅ Project file appears intact (size: $FILE_SIZE bytes)"
+        
+        # Try to parse the project file with plutil
+        if command -v plutil >/dev/null 2>&1; then
+          echo "=== Validating project file format ==="
+          if plutil -lint "$PBXPROJ_FILE" >/dev/null 2>&1; then
+            echo "✅ Project file format is valid"
+          else
+            echo "⚠️  Project file format validation failed, but continuing..."
+          fi
+        fi
     
     - name: Setup Xcode
       run: |
@@ -31,84 +74,107 @@ jobs:
       run: |
         if [ -f "Podfile" ]; then
           echo "Podfile found. Installing dependencies."
-          pod install
+          pod install --repo-update
         else
           echo "No Podfile found. Skipping pod install."
         fi
     
-    # This script is now correct, the problem was with the file content
     - name: List Project Info and Set Paths
       id: project_info
       run: |
-        echo "=== Searching for project/workspace (excluding .xcodeproj contents) ==="
-        ls -laR
-
-        WORKSPACE_PATH=$(find . -name "*.xcodeproj" -prune -o -name "*.xcworkspace" -print | head -n 1)
-        PROJECT_PATH=$(find . -maxdepth 3 -name "*.xcodeproj" | head -n 1)
+        echo "=== Project Discovery ==="
+        
+        # Look for workspace first (CocoaPods creates these)
+        WORKSPACE_PATH=$(find . -maxdepth 2 -name "*.xcworkspace" | head -n 1)
+        PROJECT_PATH=$(find . -maxdepth 2 -name "*.xcodeproj" | head -n 1)
 
         if [ -n "$WORKSPACE_PATH" ]; then
-          echo "✅ Found valid top-level workspace at: $WORKSPACE_PATH"
+          echo "✅ Found workspace: $WORKSPACE_PATH"
           echo "WORKSPACE_FILE=${WORKSPACE_PATH}" >> $GITHUB_ENV
           echo "USE_WORKSPACE=true" >> $GITHUB_ENV
           SCHEME_NAME=$(basename "$WORKSPACE_PATH" .xcworkspace)
-          echo "PROJECT_NAME=${SCHEME_NAME}" >> $GITHUB_ENV
         elif [ -n "$PROJECT_PATH" ]; then
-          echo "✅ No top-level workspace found. Using project at: $PROJECT_PATH"
+          echo "✅ Found project: $PROJECT_PATH"
           echo "PROJECT_FILE=${PROJECT_PATH}" >> $GITHUB_ENV
           echo "USE_WORKSPACE=false" >> $GITHUB_ENV
           SCHEME_NAME=$(basename "$PROJECT_PATH" .xcodeproj)
-          echo "PROJECT_NAME=${SCHEME_NAME}" >> $GITHUB_ENV
         else
-          echo "❌ Error: Could not find a valid .xcworkspace or .xcodeproj file."
+          echo "❌ No Xcode project or workspace found!"
           exit 1
         fi
         
-        echo "--- Determined Variables ---"
-        echo "PROJECT_NAME: ${SCHEME_NAME}"
+        echo "PROJECT_NAME=${SCHEME_NAME}" >> $GITHUB_ENV
+        echo "Detected scheme name: ${SCHEME_NAME}"
 
-    - name: Show Schemes
+    - name: Show Available Schemes
       run: |
+        echo "=== Available Schemes ==="
         if [ "$USE_WORKSPACE" == "true" ]; then
           xcodebuild -workspace "$WORKSPACE_FILE" -list
         else
           xcodebuild -project "$PROJECT_FILE" -list
         fi
     
+    # [NEW] Test if we can read the project before building
+    - name: Test Project Access
+      run: |
+        echo "=== Testing project access ==="
+        if [ "$USE_WORKSPACE" == "true" ]; then
+          echo "Testing workspace access..."
+          xcodebuild -workspace "$WORKSPACE_FILE" -scheme "$PROJECT_NAME" -showBuildSettings | head -10
+        else
+          echo "Testing project access..."
+          xcodebuild -project "$PROJECT_FILE" -scheme "$PROJECT_NAME" -showBuildSettings | head -10
+        fi
+    
     - name: Build for Simulator
       run: |
+        echo "=== Building for iOS Simulator ==="
+        
         if [ "$USE_WORKSPACE" == "true" ]; then
-          BUILD_ARGS="-workspace \"$WORKSPACE_FILE\""
+          BUILD_ARGS="-workspace $WORKSPACE_FILE"
         else
-          BUILD_ARGS="-project \"$PROJECT_FILE\""
+          BUILD_ARGS="-project $PROJECT_FILE"
         fi
         
-        xcodebuild build \
+        xcodebuild clean build \
           $BUILD_ARGS \
           -scheme "$PROJECT_NAME" \
           -configuration Debug \
-          -destination 'platform=iOS Simulator,name=iPhone 15' \
+          -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
           -sdk iphonesimulator \
           CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
-
-    - name: Create Archive
+          CODE_SIGNING_ALLOWED=NO \
+          -quiet
+    
+    - name: Create Archive (Optional)
+      continue-on-error: true
       run: |
+        echo "=== Creating Archive ==="
+        
         if [ "$USE_WORKSPACE" == "true" ]; then
-          BUILD_ARGS="-workspace \"$WORKSPACE_FILE\""
+          BUILD_ARGS="-workspace $WORKSPACE_FILE"
         else
-          BUILD_ARGS="-project \"$PROJECT_FILE\""
+          BUILD_ARGS="-project $PROJECT_FILE"
         fi
+        
+        mkdir -p build
         
         xcodebuild archive \
           $BUILD_ARGS \
           -scheme "$PROJECT_NAME" \
+          -configuration Release \
           -archivePath "build/$PROJECT_NAME.xcarchive" \
           CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_ALLOWED=NO \
+          -quiet
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: ios-build-artifacts
-        path: build/
+        path: |
+          build/
+          *.log
         retention-days: 7

