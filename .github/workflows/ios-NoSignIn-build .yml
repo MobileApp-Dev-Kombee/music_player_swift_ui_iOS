@@ -46,7 +46,7 @@ jobs:
         xcodebuild clean build \
           -project MusicPlayerApp.xcodeproj \
           -scheme "$SCHEME_NAME" \
-          -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO
 
