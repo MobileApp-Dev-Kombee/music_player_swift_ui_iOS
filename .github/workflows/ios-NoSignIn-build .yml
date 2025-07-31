@@ -24,28 +24,32 @@ jobs:
       with:
         xcode-version: '16.2'
 
-    - name: Verify Xcode Version
-      run: xcodebuild -version
+    - name: Verify Xcode Version and Mac Architecture
+      run: |
+        xcodebuild -version
+        echo "Runner architecture: $(uname -m)"
 
     - name: List Available Schemes
       run: xcodebuild -list -project MusicPlayerApp.xcodeproj
 
-    - name: Build for iOS Simulator
+    # --- THIS STEP IS UPDATED ---
+    - name: Build Universal App for Simulators
       run: |
         SCHEME_NAME="MusicPlayerApp"
-        # We'll put the output in a predictable location inside the 'build' directory
         DERIVED_DATA_PATH="build/DerivedData"
 
-        echo "🔨 Building scheme '$SCHEME_NAME' for simulator..."
+        echo "🔨 Building Universal scheme '$SCHEME_NAME' for all simulators..."
         xcodebuild clean build \
           -project MusicPlayerApp.xcodeproj \
           -scheme "$SCHEME_NAME" \
-          -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+          -destination 'generic/platform=iOS Simulator' \
           -derivedDataPath "$DERIVED_DATA_PATH" \
+          -arch x86_64 -arch arm64 \
           CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO
+          CODE_SIGNING_REQUIRED=NO \
+          ONLY_ACTIVE_ARCH=NO
 
-    - name: Create Build Archive
+    - name: Create Build Archive (for App Store)
       run: |
         SCHEME_NAME="MusicPlayerApp"
         ARCHIVE_PATH="build/$SCHEME_NAME.xcarchive"
@@ -59,11 +63,10 @@ jobs:
           CODE_SIGNING_REQUIRED=NO \
           SKIP_INSTALL=NO
 
-    - name: Upload Simulator Build (.app file)
+    - name: Upload Universal Simulator Build (.app file)
       uses: actions/upload-artifact@v4
       with:
-        name: simulator-build-app
-        # This path points directly to the compiled .app file
+        name: universal-simulator-build-app
         path: build/DerivedData/Build/Products/Debug-iphonesimulator/MusicPlayerApp.app
         retention-days: 5
 
