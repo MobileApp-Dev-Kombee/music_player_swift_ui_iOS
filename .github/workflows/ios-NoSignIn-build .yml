@@ -11,6 +11,7 @@ on:
 
 jobs:
   build:
+    # We are still on an Intel runner, but we'll create builds for both platforms.
     runs-on: macos-14
 
     steps:
@@ -24,36 +25,55 @@ jobs:
       with:
         xcode-version: '16.2'
 
-    - name: Verify Xcode Version and Mac Architecture
+    - name: Verify Environment
       run: |
         xcodebuild -version
-        echo "Runner architecture: $(uname -m)"
+        echo "Runner architecture: $(uname -m)" # This will show x86_64
 
-    - name: List Available Schemes
-      run: xcodebuild -list -project MusicPlayerApp.xcodeproj
-
-    # --- THIS STEP IS UPDATED ---
-    - name: Build Universal App for Simulators
+    # --- BUILD FOR YOUR M2 MAC ---
+    - name: Build for Apple Silicon Simulator (arm64)
       run: |
-        SCHEME_NAME="MusicPlayerApp"
-        DERIVED_DATA_PATH="build/DerivedData"
-
-        echo "🔨 Building Universal scheme '$SCHEME_NAME' for all simulators..."
+        echo "🔨 Building for Apple Silicon Simulators (arm64)..."
         xcodebuild clean build \
           -project MusicPlayerApp.xcodeproj \
-          -scheme "$SCHEME_NAME" \
-          -destination 'generic/platform=iOS Simulator' \
-          -derivedDataPath "$DERIVED_DATA_PATH" \
-          -arch x86_64 -arch arm64 \
+          -scheme MusicPlayerApp \
+          -destination 'platform=iOS Simulator,arch=arm64' \
+          -derivedDataPath build/arm64 \
           CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          ONLY_ACTIVE_ARCH=NO
+          CODE_SIGNING_REQUIRED=NO
 
+    # --- BUILD FOR INTEL MACS (for completeness) ---
+    - name: Build for Intel Simulator (x86_64)
+      run: |
+        echo "🔨 Building for Intel Simulators (x86_64)..."
+        xcodebuild clean build \
+          -project MusicPlayerApp.xcodeproj \
+          -scheme MusicPlayerApp \
+          -destination 'platform=iOS Simulator,arch=x86_64' \
+          -derivedDataPath build/x86_64 \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+
+    # --- UPLOAD THE ARTIFACTS ---
+    - name: Upload Apple Silicon Simulator Build (For M-series Macs)
+      uses: actions/upload-artifact@v4
+      with:
+        name: simulator-build-arm64
+        path: build/arm64/Build/Products/Debug-iphonesimulator/MusicPlayerApp.app
+        retention-days: 5
+
+    - name: Upload Intel Simulator Build
+      uses: actions/upload-artifact@v4
+      with:
+        name: simulator-build-x86_64
+        path: build/x86_64/Build/Products/Debug-iphonesimulator/MusicPlayerApp.app
+        retention-days: 5
+
+    # --- ARCHIVE STEP (remains unchanged) ---
     - name: Create Build Archive (for App Store)
       run: |
         SCHEME_NAME="MusicPlayerApp"
         ARCHIVE_PATH="build/$SCHEME_NAME.xcarchive"
-
         echo "📦 Archiving scheme '$SCHEME_NAME'..."
         xcodebuild archive \
           -project MusicPlayerApp.xcodeproj \
@@ -62,15 +82,8 @@ jobs:
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           SKIP_INSTALL=NO
-
-    - name: Upload Universal Simulator Build (.app file)
-      uses: actions/upload-artifact@v4
-      with:
-        name: universal-simulator-build-app
-        path: build/DerivedData/Build/Products/Debug-iphonesimulator/MusicPlayerApp.app
-        retention-days: 5
-
-    - name: Upload Archive Build (.xcarchive)
+          
+    - name: Upload Archive Build
       uses: actions/upload-artifact@v4
       if: always()
       with:
