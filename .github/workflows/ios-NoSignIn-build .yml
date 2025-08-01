@@ -1,5 +1,3 @@
-# .github/workflows/build-ios.yml
-
 name: Build iOS Project
 
 on:
@@ -11,6 +9,7 @@ on:
 
 jobs:
   build:
+    # Using a modern runner is crucial
     runs-on: macos-14
 
     steps:
@@ -19,10 +18,12 @@ jobs:
       with:
         lfs: true
 
-    - name: Select Xcode 16.2
+    - name: Select Xcode Version
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '16.2'
+        # Building for iOS 18+ may require a specific Xcode beta.
+        # Ensure this Xcode version supports the iOS 18.3 SDK.
+        xcode-version: '16.0' # Or the latest available Xcode 16 beta
 
     - name: Verify Xcode Version
       run: xcodebuild -version
@@ -36,13 +37,16 @@ jobs:
         # We'll put the output in a predictable location inside the 'build' directory
         DERIVED_DATA_PATH="build/DerivedData"
         echo "🔨 Building scheme '$SCHEME_NAME' for simulator..."
+        # Explicitly building for ARM64 architecture is key for Apple Silicon Macs
         xcodebuild clean build \
           -project MusicPlayerApp.xcodeproj \
           -scheme "$SCHEME_NAME" \
-          -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+          -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=latest' \
           -derivedDataPath "$DERIVED_DATA_PATH" \
+          -arch arm64 \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO
+
     - name: Create Build Archive
       run: |
         SCHEME_NAME="MusicPlayerApp"
@@ -55,6 +59,7 @@ jobs:
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           SKIP_INSTALL=NO
+
     - name: Upload Simulator Build (.app file)
       uses: actions/upload-artifact@v4
       with:
