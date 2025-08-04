@@ -38,7 +38,6 @@ jobs:
         echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_OUTPUT
 
         # Dynamically find the first non-test scheme.
-        # For more complex projects, consider hardcoding this.
         SCHEME=$(xcodebuild -list -project "$PROJECT_FILE" | awk '/Schemes:/,/Build Configurations:/' | grep -v -E '(Schemes:|Pods|Tests|Build Configurations:)' | head -n 1 | xargs)
         if [ -z "$SCHEME" ]; then
           echo "Error: Could not automatically determine a buildable scheme."
@@ -50,13 +49,12 @@ jobs:
 
     - name: Build for iOS Simulator
       run: |
-        # The runner architecture (uname -m) is arm64 on macos-14, which is correct for modern simulators
+        # We REMOVED the '-arch' flag because '-destination' handles it automatically.
         xcodebuild clean build \
           -project "${{ steps.project_info.outputs.PROJECT_NAME }}" \
           -scheme "${{ steps.project_info.outputs.SCHEME_NAME }}" \
           -destination 'platform=iOS Simulator,OS=latest' \
           -derivedDataPath "build/DerivedData" \
-          -arch "$(uname -m)" \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO
 
