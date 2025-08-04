@@ -22,13 +22,9 @@ jobs:
       with:
         xcode-version: 'latest-stable'
 
-    - name: Verify Xcode Version
-      run: xcodebuild -version
-
     - name: Get Project and Scheme Info
       id: project_info
       run: |
-        # Find the .xcodeproj file automatically
         PROJECT_FILE=$(find . -name "*.xcodeproj" -maxdepth 1)
         if [ -z "$PROJECT_FILE" ]; then
           echo "Error: No .xcodeproj file found in the root directory."
@@ -36,7 +32,8 @@ jobs:
         fi
         echo "PROJECT_NAME=${PROJECT_FILE##*/}" >> $GITHUB_OUTPUT
 
-        # Dynamically find the first non-test scheme
+        # This logic is fragile but works for simple projects.
+        # Consider hardcoding the scheme name for more reliability.
         SCHEME=$(xcodebuild -list -project "$PROJECT_FILE" | grep -v -E '(Pods|Tests)' | awk 'NR==1{print $1}' | sed -n 's/^[[:space:]]*//;s/[[:space:]]*$//;p')
         if [ -z "$SCHEME" ]; then
           echo "Error: Could not automatically determine a buildable scheme."
@@ -44,58 +41,56 @@ jobs:
         fi
         echo "SCHEME_NAME=${SCHEME}" >> $GITHUB_OUTPUT
 
-    - name: Get Runner Architecture
-      id: runner_arch
-      run: echo "ARCH=$(uname -m)" >> $GITHUB_OUTPUT
+    - name: Install Apple Certificate and Provisioning Profile
+      env:
+        BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+        P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+        KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      run: |
+        # Create a temporary keychain
+        KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+        security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        
+        # Import the certificate
+        CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+        echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+        security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+        security list-keychain -d user -s "$KEYCHAIN_PATH"
+        
+        # Install the provisioning profile
+        PROFILE_PATH=~/Library/MobileDevice/Provisioning\ Profiles
+        mkdir -p "$PROFILE_PATH"
+        PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode))
+        echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH/$PROFILE_UUID.mobileprovision"
+        echo "Installed profile $PROFILE_UUID"
 
-    - name: Build for iOS Simulator
+    - name: Archive and Export IPA
       run: |
         PROJECT_NAME="${{ steps.project_info.outputs.PROJECT_NAME }}"
         SCHEME_NAME="${{ steps.project_info.outputs.SCHEME_NAME }}"
-        ARCH_TYPE="${{ steps.runner_arch.outputs.ARCH }}"
-        DERIVED_DATA_PATH="build/DerivedData"
-
-        echo "Found project: $PROJECT_NAME"
-        echo "Found scheme: $SCHEME_NAME"
-        echo "Runner architecture: $ARCH_TYPE"
-        echo "🔨 Building for simulator..."
-
-        xcodebuild clean build \
-          -project "$PROJECT_NAME" \
-          -scheme "$SCHEME_NAME" \
-          -destination 'platform=iOS Simulator,OS=latest' \
-          -derivedDataPath "$DERIVED_DATA_PATH" \
-          -arch "$ARCH_TYPE" \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO
-
-    - name: Create Build Archive
-      run: |
-        PROJECT_NAME="${{ steps.project_info.outputs.PROJECT_NAME }}"
-        SCHEME_NAME="${{ steps.project_info.outputs.SCHEME_NAME }}"
-        ARCHIVE_PATH="build/$SCHEME_NAME.xcarchive"
+        ARCHIVE_PATH="build/archive.xcarchive"
+        EXPORT_PATH="build/export"
 
         echo "📦 Archiving scheme '$SCHEME_NAME'..."
         xcodebuild archive \
           -project "$PROJECT_NAME" \
           -scheme "$SCHEME_NAME" \
+          -sdk iphoneos \
           -archivePath "$ARCHIVE_PATH" \
-          -destination 'generic/platform=iOS' \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          SKIP_INSTALL=NO
+          -destination 'generic/platform=iOS'
+          
+        echo "📤 Exporting IPA..."
+        xcodebuild -exportArchive \
+          -archivePath "$ARCHIVE_PATH" \
+          -exportPath "$EXPORT_PATH" \
+          -exportOptionsPlist "scripts/ExportOptions.plist"
 
-    - name: Upload Simulator Build (.app file)
+    - name: Upload Installable IPA
       uses: actions/upload-artifact@v4
       with:
-        name: simulator-build-app
-        path: build/DerivedData/Build/Products/Debug-iphonesimulator/${{ steps.project_info.outputs.SCHEME_NAME }}.app
-        retention-days: 5
-
-    - name: Upload Archive Build (.xcarchive)
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: archive-build
-        path: build/${{ steps.project_info.outputs.SCHEME_NAME }}.xcarchive
-        retention-days: 5
+        name: installable-app-ipa
+        path: build/export/*.ipa
+        retention-days: 7
