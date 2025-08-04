@@ -1,4 +1,4 @@
-name: Build iOS Simulator App (Final - Architecture Fix)
+name: Build iOS Simulator App (Definitive Final)
 
 on:
   push:
@@ -22,44 +22,64 @@ jobs:
       with:
         xcode-version: 'latest-stable'
 
-    - name: Get Project and Scheme Info
+    - name: Get Project/Workspace and Scheme
       id: project_info
       run: |
-        PROJECT_FILE=$(find . -name "*.xcodeproj" -maxdepth 1)
-        if [ -z "$PROJECT_FILE" ]; then
-          echo "Error: No .xcodeproj file found in the root directory."
+        # IMPROVED: Prefer .xcworkspace if it exists, as it's common with CocoaPods/SPM
+        if [ -d "*.xcworkspace" ]; then
+          WORKSPACE_FILE=$(find . -name "*.xcworkspace" -maxdepth 1)
+          PROJECT_OR_WORKSPACE_FLAG="-workspace"
+          PROJECT_OR_WORKSPACE_NAME=$(basename "$WORKSPACE_FILE")
+        else
+          PROJECT_FILE=$(find . -name "*.xcodeproj" -maxdepth 1)
+          PROJECT_OR_WORKSPACE_FLAG="-project"
+          PROJECT_OR_WORKSPACE_NAME=$(basename "$PROJECT_FILE")
+        fi
+
+        if [ -z "$PROJECT_OR_WORKSPACE_NAME" ]; then
+          echo "Error: No .xcodeproj or .xcworkspace file found."
           exit 1
         fi
-        PROJECT_NAME=$(basename "$PROJECT_FILE")
-        echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_OUTPUT
+        
+        echo "PROJECT_OR_WORKSPACE_FLAG=${PROJECT_OR_WORKSPACE_FLAG}" >> $GITHUB_OUTPUT
+        echo "PROJECT_OR_WORKSPACE_NAME=${PROJECT_OR_WORKSPACE_NAME}" >> $GITHUB_OUTPUT
 
-        SCHEME=$(xcodebuild -list -project "$PROJECT_FILE" | awk '/Schemes:/,/Build Configurations:/' | grep -v -E '(Schemes:|Pods|Tests|Build Configurations:)' | head -n 1 | xargs)
+        SCHEME=$(xcodebuild -list $PROJECT_OR_WORKSPACE_FLAG "$PROJECT_OR_WORKSPACE_NAME" | awk '/Schemes:/,/Build Configurations:/' | grep -v -E '(Schemes:|Pods|Tests|Build Configurations:)' | head -n 1 | xargs)
         if [ -z "$SCHEME" ]; then
           echo "Error: Could not automatically determine a buildable scheme."
           exit 1
         fi
         echo "SCHEME_NAME=${SCHEME}" >> $GITHUB_OUTPUT
 
-    - name: Build for iOS Simulator (Forcing arm64)
+    - name: Build and Diagnose
+      id: build
       run: |
-        # FINAL FIX: We are now explicitly telling Xcode to build for arm64.
-        # This overrides any project settings that might be forcing an Intel (x86_64) build.
+        # THE DEFINITIVE FIX:
+        # 1. We force ARCHS to arm64 (for Apple Silicon Simulators).
+        # 2. We explicitly set EXCLUDED_ARCHS to nothing, overriding any bad project settings.
         xcodebuild clean build \
-          -project "${{ steps.project_info.outputs.PROJECT_NAME }}" \
+          ${{ steps.project_info.outputs.PROJECT_OR_WORKSPACE_FLAG }} "${{ steps.project_info.outputs.PROJECT_OR_WORKSPACE_NAME }}" \
           -scheme "${{ steps.project_info.outputs.SCHEME_NAME }}" \
           -sdk iphonesimulator \
           -derivedDataPath "build/DerivedData" \
           ARCHS=arm64 \
+          EXCLUDED_ARCHS="" \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO
 
+        # --- DIAGNOSTIC STEP ---
+        # This will tell us the true architecture of the file that was built.
+        APP_PATH="build/DerivedData/Build/Products/Debug-iphonesimulator/${{ steps.project_info.outputs.SCHEME_NAME }}.app"
+        echo "--- Verifying Architecture ---"
+        file "${APP_PATH}/${{ steps.project_info.outputs.SCHEME_NAME }}"
+        echo "--------------------------"
+        echo "APP_PATH=${APP_PATH}" >> $GITHUB_OUTPUT
+
+
     - name: Compress Simulator App
       run: |
-        DERIVED_DATA_PATH="build/DerivedData"
-        APP_NAME="${{ steps.project_info.outputs.SCHEME_NAME }}.app"
-        APP_PATH="$DERIVED_DATA_PATH/Build/Products/Debug-iphonesimulator/$APP_NAME"
+        APP_PATH="${{ steps.build.outputs.APP_PATH }}"
         ZIP_PATH="${{ steps.project_info.outputs.SCHEME_NAME }}.zip"
-        
         echo "Compressing $APP_PATH to $ZIP_PATH"
         ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
 
