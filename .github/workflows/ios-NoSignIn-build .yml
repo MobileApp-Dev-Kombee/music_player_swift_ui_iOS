@@ -1,4 +1,4 @@
-name: Build iOS Simulator App (Final)
+name: Build iOS Simulator App (Final - Architecture Fix)
 
 on:
   push:
@@ -40,17 +40,19 @@ jobs:
         fi
         echo "SCHEME_NAME=${SCHEME}" >> $GITHUB_OUTPUT
 
-    - name: Build for iOS Simulator
+    - name: Build for iOS Simulator (Forcing arm64)
       run: |
+        # FINAL FIX: We are now explicitly telling Xcode to build for arm64.
+        # This overrides any project settings that might be forcing an Intel (x86_64) build.
         xcodebuild clean build \
           -project "${{ steps.project_info.outputs.PROJECT_NAME }}" \
           -scheme "${{ steps.project_info.outputs.SCHEME_NAME }}" \
           -sdk iphonesimulator \
           -derivedDataPath "build/DerivedData" \
+          ARCHS=arm64 \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO
 
-    # NEW STEP: Compress the .app bundle into a .zip file
     - name: Compress Simulator App
       run: |
         DERIVED_DATA_PATH="build/DerivedData"
@@ -61,7 +63,6 @@ jobs:
         echo "Compressing $APP_PATH to $ZIP_PATH"
         ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
 
-    # MODIFIED STEP: Upload the .zip file instead of the raw .app folder
     - name: Upload Simulator Build (.zip)
       uses: actions/upload-artifact@v4
       with:
