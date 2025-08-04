@@ -28,7 +28,6 @@ jobs:
     - name: Get Project and Scheme Info
       id: project_info
       run: |
-        # Find the .xcodeproj file automatically
         PROJECT_FILE=$(find . -name "*.xcodeproj" -maxdepth 1)
         if [ -z "$PROJECT_FILE" ]; then
           echo "Error: No .xcodeproj file found in the root directory."
@@ -37,7 +36,6 @@ jobs:
         PROJECT_NAME=$(basename "$PROJECT_FILE")
         echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_OUTPUT
 
-        # Dynamically find the first non-test scheme.
         SCHEME=$(xcodebuild -list -project "$PROJECT_FILE" | awk '/Schemes:/,/Build Configurations:/' | grep -v -E '(Schemes:|Pods|Tests|Build Configurations:)' | head -n 1 | xargs)
         if [ -z "$SCHEME" ]; then
           echo "Error: Could not automatically determine a buildable scheme."
@@ -49,19 +47,19 @@ jobs:
 
     - name: Build for iOS Simulator
       run: |
-        # We REMOVED the '-arch' flag because '-destination' handles it automatically.
+        # CORRECTED: Use a generic simulator name that Xcode recognizes from the available list.
         xcodebuild clean build \
           -project "${{ steps.project_info.outputs.PROJECT_NAME }}" \
           -scheme "${{ steps.project_info.outputs.SCHEME_NAME }}" \
-          -destination 'platform=iOS Simulator,OS=latest' \
+          -destination 'platform=iOS Simulator,name=Any iOS Simulator Device' \
           -derivedDataPath "build/DerivedData" \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO
 
     - name: Upload Simulator Build (.app)
       uses: actions/upload-artifact@v4
+      if: success() # Only upload if the build succeeds
       with:
         name: simulator-build-app
-        # The path to the .app file built for the simulator
         path: build/DerivedData/Build/Products/Debug-iphonesimulator/${{ steps.project_info.outputs.SCHEME_NAME }}.app
         retention-days: 5
