@@ -1,4 +1,4 @@
-name: Build iOS Simulator App (Definitive Final)
+name: Build iOS Simulator App (Final & Verified)
 
 on:
   push:
@@ -25,8 +25,8 @@ jobs:
     - name: Get Project/Workspace and Scheme
       id: project_info
       run: |
-        # IMPROVED: Prefer .xcworkspace if it exists, as it's common with CocoaPods/SPM
-        if [ -d "*.xcworkspace" ]; then
+        # Prefer .xcworkspace if it exists (common with CocoaPods/SPM)
+        if ls *.xcworkspace &> /dev/null; then
           WORKSPACE_FILE=$(find . -name "*.xcworkspace" -maxdepth 1)
           PROJECT_OR_WORKSPACE_FLAG="-workspace"
           PROJECT_OR_WORKSPACE_NAME=$(basename "$WORKSPACE_FILE")
@@ -43,6 +43,7 @@ jobs:
         
         echo "PROJECT_OR_WORKSPACE_FLAG=${PROJECT_OR_WORKSPACE_FLAG}" >> $GITHUB_OUTPUT
         echo "PROJECT_OR_WORKSPACE_NAME=${PROJECT_OR_WORKSPACE_NAME}" >> $GITHUB_OUTPUT
+        echo "Using ${PROJECT_OR_WORKSPACE_FLAG} ${PROJECT_OR_WORKSPACE_NAME}"
 
         SCHEME=$(xcodebuild -list $PROJECT_OR_WORKSPACE_FLAG "$PROJECT_OR_WORKSPACE_NAME" | awk '/Schemes:/,/Build Configurations:/' | grep -v -E '(Schemes:|Pods|Tests|Build Configurations:)' | head -n 1 | xargs)
         if [ -z "$SCHEME" ]; then
@@ -50,13 +51,13 @@ jobs:
           exit 1
         fi
         echo "SCHEME_NAME=${SCHEME}" >> $GITHUB_OUTPUT
+        echo "Found Scheme: ${SCHEME}"
 
-    - name: Build and Diagnose
+    - name: Build for Simulator and Verify Architecture
       id: build
       run: |
-        # THE DEFINITIVE FIX:
-        # 1. We force ARCHS to arm64 (for Apple Silicon Simulators).
-        # 2. We explicitly set EXCLUDED_ARCHS to nothing, overriding any bad project settings.
+        # This combination of flags forces an arm64 build for Apple Silicon simulators,
+        # overriding any problematic settings in the project file.
         xcodebuild clean build \
           ${{ steps.project_info.outputs.PROJECT_OR_WORKSPACE_FLAG }} "${{ steps.project_info.outputs.PROJECT_OR_WORKSPACE_NAME }}" \
           -scheme "${{ steps.project_info.outputs.SCHEME_NAME }}" \
@@ -67,23 +68,22 @@ jobs:
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO
 
-        # --- DIAGNOSTIC STEP ---
-        # This will tell us the true architecture of the file that was built.
+        # --- Diagnostic Step to Confirm Architecture ---
         APP_PATH="build/DerivedData/Build/Products/Debug-iphonesimulator/${{ steps.project_info.outputs.SCHEME_NAME }}.app"
-        echo "--- Verifying Architecture ---"
+        echo "--- Verifying Built App Architecture ---"
         file "${APP_PATH}/${{ steps.project_info.outputs.SCHEME_NAME }}"
-        echo "--------------------------"
+        echo "------------------------------------"
         echo "APP_PATH=${APP_PATH}" >> $GITHUB_OUTPUT
 
-
-    - name: Compress Simulator App
+    - name: Compress App for Distribution
       run: |
         APP_PATH="${{ steps.build.outputs.APP_PATH }}"
         ZIP_PATH="${{ steps.project_info.outputs.SCHEME_NAME }}.zip"
-        echo "Compressing $APP_PATH to $ZIP_PATH"
+        
+        echo "Compressing $APP_PATH to $ZIP_PATH..."
         ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
 
-    - name: Upload Simulator Build (.zip)
+    - name: Upload Installable App
       uses: actions/upload-artifact@v4
       with:
         name: simulator-build-app-zip
