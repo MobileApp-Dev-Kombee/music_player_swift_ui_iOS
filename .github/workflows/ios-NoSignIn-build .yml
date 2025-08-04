@@ -22,9 +22,6 @@ jobs:
       with:
         xcode-version: 'latest-stable'
 
-    - name: Verify Xcode Version
-      run: xcodebuild -version
-
     - name: Get Project and Scheme Info
       id: project_info
       run: |
@@ -42,13 +39,9 @@ jobs:
           exit 1
         fi
         echo "SCHEME_NAME=${SCHEME}" >> $GITHUB_OUTPUT
-        echo "Found Project: ${PROJECT_NAME}"
-        echo "Found Scheme: ${SCHEME}"
 
-    - name: Build for iOS Simulator (Final)
+    - name: Build for iOS Simulator
       run: |
-        # FINAL CORRECTION: We remove the problematic '-destination' flag entirely
-        # and use '-sdk' instead. This is the most reliable method.
         xcodebuild clean build \
           -project "${{ steps.project_info.outputs.PROJECT_NAME }}" \
           -scheme "${{ steps.project_info.outputs.SCHEME_NAME }}" \
@@ -57,10 +50,21 @@ jobs:
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO
 
-    - name: Upload Simulator Build (.app)
+    # NEW STEP: Compress the .app bundle into a .zip file
+    - name: Compress Simulator App
+      run: |
+        DERIVED_DATA_PATH="build/DerivedData"
+        APP_NAME="${{ steps.project_info.outputs.SCHEME_NAME }}.app"
+        APP_PATH="$DERIVED_DATA_PATH/Build/Products/Debug-iphonesimulator/$APP_NAME"
+        ZIP_PATH="${{ steps.project_info.outputs.SCHEME_NAME }}.zip"
+        
+        echo "Compressing $APP_PATH to $ZIP_PATH"
+        ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
+
+    # MODIFIED STEP: Upload the .zip file instead of the raw .app folder
+    - name: Upload Simulator Build (.zip)
       uses: actions/upload-artifact@v4
-      if: success()
       with:
-        name: simulator-build-app
-        path: build/DerivedData/Build/Products/Debug-iphonesimulator/${{ steps.project_info.outputs.SCHEME_NAME }}.app
+        name: simulator-build-app-zip
+        path: ${{ steps.project_info.outputs.SCHEME_NAME }}.zip
         retention-days: 5
