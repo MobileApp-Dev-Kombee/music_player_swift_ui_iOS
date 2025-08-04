@@ -1,4 +1,4 @@
-name: Build iOS Simulator App (Dynamic)
+name: Build iOS Simulator App (Final)
 
 on:
   push:
@@ -45,20 +45,21 @@ jobs:
         echo "Found Project: ${PROJECT_NAME}"
         echo "Found Scheme: ${SCHEME}"
 
-    - name: Build for iOS Simulator
+    - name: Build for iOS Simulator (Final)
       run: |
-        # CORRECTED: Use a generic simulator name that Xcode recognizes from the available list.
+        # FINAL CORRECTION: We remove the problematic '-destination' flag entirely
+        # and use '-sdk' instead. This is the most reliable method.
         xcodebuild clean build \
           -project "${{ steps.project_info.outputs.PROJECT_NAME }}" \
           -scheme "${{ steps.project_info.outputs.SCHEME_NAME }}" \
-          -destination 'platform=iOS Simulator,name=Any iOS Simulator Device' \
+          -sdk iphonesimulator \
           -derivedDataPath "build/DerivedData" \
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO
 
     - name: Upload Simulator Build (.app)
       uses: actions/upload-artifact@v4
-      if: success() # Only upload if the build succeeds
+      if: success()
       with:
         name: simulator-build-app
         path: build/DerivedData/Build/Products/Debug-iphonesimulator/${{ steps.project_info.outputs.SCHEME_NAME }}.app
